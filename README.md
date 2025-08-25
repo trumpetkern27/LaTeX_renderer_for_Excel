@@ -112,7 +112,7 @@ $\mathbb{N} \subset \mathbb{Z} \subset \mathbb{Q} \subset \mathbb{R} \subset \ma
 
 1. **Clone the repository**:
 ```bash
-git clone https://github.com/username/LaTeX_renderer_for_Excel.git
+git clone https://github.com/trumpetkern27/LaTeX_renderer_for_Excel.git
 cd LaTeX_renderer_for_excel
 ```
 
@@ -125,10 +125,9 @@ cd LaTeX_renderer_for_excel
 ├── src/
 │   ├── LaTeXRenderer.bas      # Core rendering logic
 │   ├── ThisWorkbook.cls       # Add-in initialization
-|   ├── Ribbon.bas       # Add-in Ribbon
-│   └── Global.bas    # Global variables/settings
-├── docs/
-│   └── installation.md       # Setup guide
+|   ├── Ribbon.bas             # Add-in Ribbon
+│   └── Global.bas             # Global variables/settings
+├── installation.md            # Setup guide
 └── LaTeXRenderer.xlam         # Compiled add-in
 ```
 
@@ -176,7 +175,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 📞 Support
 
-- 📧 **Email**: email@gmail.com
+- 📧 **Email**: trumpetkern@gmail.com
 - 🐛 **Issues**: [GitHub Issues](../../issues)
 - 💬 **Discussions**: [GitHub Discussions](../../discussions)
 
