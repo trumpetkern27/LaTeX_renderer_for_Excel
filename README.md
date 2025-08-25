@@ -25,7 +25,7 @@ Transform your Excel spreadsheets with beautiful mathematical notation! This Exc
 
 To avoid security warnings when installing the add-in, please follow these steps:
 
-1. **Download** the latest ZIP release from the [Releases](https://github.com/username/LaTeX_renderer_for_Excel/releases).
+1. **Download** the latest ZIP release from the [Releases](https://github.com/trumpetkern27/LaTeX_renderer_for_Excel/releases).
 2. **Extract** all files from the ZIP to a folder on your computer (e.g., `Documents\ExcelAddins`).
 3. **Add the folder as a Trusted Location in Excel**:
    - Go to **File > Options > Trust Center > Trust Center Settings > Trusted Locations**.
@@ -43,7 +43,7 @@ To avoid security warnings when installing the add-in, please follow these steps
 
 ---
 
-If you encounter any issues, please check the [GitHub Issues](https://github.com/username/LaTeX_renderer_for_Excel/issues) page or reach out.
+If you encounter any issues, please check the [GitHub Issues](https://github.com/trumpetkern27/LaTeX_renderer_for_Excel/issues) page or reach out.
 
 ### Basic Usage
 
