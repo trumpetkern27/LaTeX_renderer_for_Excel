@@ -21,15 +21,29 @@ Transform your Excel spreadsheets with beautiful mathematical notation! This Exc
 - 🎯 **Real-time Rendering**: Converts as you type
 - 🔄 **Toggle Support**: Enable/disable rendering on demand
 
-## 🚀 Quick Start
+##  Installation
 
-### Installation
+To avoid security warnings when installing the add-in, please follow these steps:
 
-1. **Download** the latest `LaTeXRenderer.xlam` from Releases
-2. **Open Excel** → File → Options → Add-ins
-3. **Select "Excel Add-ins"** from dropdown → Go
-4. **Browse** and select the downloaded `.xlam` file
-5. **Check "LaTeX Renderer"** → OK
+1. **Download** the latest ZIP release from the [Releases](https://github.com/username/LaTeX_renderer_for_Excel/releases).
+2. **Extract** all files from the ZIP to a folder on your computer (e.g., `Documents\ExcelAddins`).
+3. **Add the folder as a Trusted Location in Excel**:
+   - Go to **File > Options > Trust Center > Trust Center Settings > Trusted Locations**.
+   - Click **Add new location...** and select the folder where you extracted the add-in.
+4. **Load the Add-in**:
+   - Open Excel and go to **File > Options > Add-ins**.
+   - At the bottom, select **Excel Add-ins** from the dropdown and click **Go**.
+   - Click **Browse**, navigate to the extracted folder, and select `LaTeXRenderer.xlam`.
+5. **If you see a security warning** when opening the add-in:
+   - Right-click the `LaTeXRenderer.xlam` file in File Explorer.
+   - Click **Properties**.
+   - If there is an **Unblock** checkbox, check it and click **OK**.
+   - See the README.txt file if issues persist
+6. Restart Excel and enjoy the add-in!
+
+---
+
+If you encounter any issues, please check the [GitHub Issues](https://github.com/username/LaTeX_renderer_for_Excel/issues) page or reach out.
 
 ### Basic Usage
 
