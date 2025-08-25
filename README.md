@@ -139,10 +139,11 @@ cd LaTeX_renderer_for_excel
 ├── src/
 │   ├── LaTeXRenderer.bas      # Core rendering logic
 │   ├── ThisWorkbook.cls       # Add-in initialization
-|   ├── Ribbon.bas             # Add-in Ribbon
+│   ├── Ribbon.bas             # Add-in Ribbon
 │   └── Global.bas             # Global variables/settings
-├── installation.md            # Setup guide
-└── LaTeXRenderer.xlam         # Compiled add-in
+├── README.md                  # Project overview and setup guide
+└── LICENSE                    # MIT license (optional but recommended)
+
 ```
 
 ## 🤝 Contributing
