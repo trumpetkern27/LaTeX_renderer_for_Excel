@@ -41,6 +41,19 @@ To avoid security warnings when installing the add-in, please follow these steps
    - See the README.txt file if issues persist
 6. Restart Excel and enjoy the add-in!
 
+## What's New (v1.0.1 – August 30, 2025)
+
+### Features
+
+- Added custom runtime limit: users can now set a maximum execution time (default: 60 seconds).
+- Added error handling for cases where font colors differ within LaTeX-style equations (`$...$`).
+
+### Bug Fixes & Improvements
+
+- Fixed: Characters after inline equations (`$...$`) were being cut off.
+- Improved: Rendering only occurs if a single cell or a merged cell range is selected.
+- Improved: Ignores Excel formulas during rendering attempts.
+
 ---
 
 If you encounter any issues, please check the [GitHub Issues](https://github.com/trumpetkern27/LaTeX_renderer_for_Excel/issues) page or reach out.
@@ -137,10 +150,10 @@ cd LaTeX_renderer_for_excel
 ### Project Structure
 ```
 ├── src/
-│   ├── LaTeXRenderer.bas      # Core rendering logic
+│   ├── renderLaTeX.bas      # Core rendering logic
 │   ├── ThisWorkbook.cls       # Add-in initialization
-│   ├── Ribbon.bas             # Add-in Ribbon
-│   └── Global.bas             # Global variables/settings
+│   ├── RibbonThings.bas             # Add-in Ribbon
+│   └── Globals.bas             # Global variables/settings
 ├── README.md                  # Project overview and setup guide
 └── LICENSE                    # MIT license (optional but recommended)
 
@@ -174,7 +187,7 @@ Contributions are welcome! Here's how you can help:
 ## ⚠️ Known Limitations
 
 - **Font Dependency**: Requires Unicode-compatible fonts
-- **Complex Expressions**: Some advanced LaTeX features not supported, such as \frac and nested functions
+- **Complex Expressions**: Some advanced LaTeX features not supported, such as \frac, \sqrt, and nested functions
 - **Performance**: May slow down with large worksheets
 - **Compatibility**: Designed for Excel 2016+
 
