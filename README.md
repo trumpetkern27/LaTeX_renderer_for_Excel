@@ -18,7 +18,6 @@ Transform your Excel spreadsheets with beautiful mathematical notation! This Exc
 - 📝 **Mathematical Alphabets**: 𝔸, 𝕭, ℂ, 𝒟 (mathbb, mathcal, mathfrak)
 - 🔺 **Superscripts/Subscripts**: x², H₂O, automatic formatting
 - ➗ **Fractions**: Converts `\frac{a}{b}` to formatted a/b
-- 🎯 **Real-time Rendering**: Converts as you type
 - 🔄 **Toggle Support**: Enable/disable rendering on demand
 
 ##  Installation
