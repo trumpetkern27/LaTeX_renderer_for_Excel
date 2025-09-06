@@ -27,32 +27,31 @@ To avoid security warnings when installing the add-in, please follow these steps
 
 1. **Download** the latest ZIP release from the [Releases](https://github.com/trumpetkern27/LaTeX_renderer_for_Excel/releases).
 2. **Extract** all files from the ZIP to a folder on your computer (e.g., `Documents\ExcelAddins`).
-3. **Add the folder as a Trusted Location in Excel**:
+3. **Install** via the installer (LaTeX_renderer_for_Excel.exe) OR
+4. **Add the folder as a Trusted Location in Excel**:
    - Go to **File > Options > Trust Center > Trust Center Settings > Trusted Locations**.
    - Click **Add new location...** and select the folder where you extracted the add-in.
-4. **Load the Add-in**:
+5. **Load the Add-in**:
    - Open Excel and go to **File > Options > Add-ins**.
    - At the bottom, select **Excel Add-ins** from the dropdown and click **Go**.
    - Click **Browse**, navigate to the extracted folder, and select `LaTeXRenderer.xlam`.
-5. **If you see a security warning** when opening the add-in:
+6. **If you see a security warning** when opening the add-in:
    - Right-click the `LaTeXRenderer.xlam` file in File Explorer.
    - Click **Properties**.
    - If there is an **Unblock** checkbox, check it and click **OK**.
    - See the README.txt file if issues persist
-6. Restart Excel and enjoy the add-in!
+7. Restart Excel and enjoy the add-in!
 
-## What's New (v1.0.1 – August 30, 2025)
-
-### Features
-
-- Added custom runtime limit: users can now set a maximum execution time (default: 60 seconds).
-- Added error handling for cases where font colors differ within LaTeX-style equations (`$...$`).
+## What's New (v1.0.2 – September 6, 2025)
 
 ### Bug Fixes & Improvements
 
-- Fixed: Characters after inline equations (`$...$`) were being cut off.
-- Improved: Rendering only occurs if a single cell or a merged cell range is selected.
-- Improved: Ignores Excel formulas during rendering attempts.
+- Fixed: Some escaped characters were not returned properly.
+- Fixed: Multiple colours within $ were not rendering
+- Fixed: Runtime error detection missing in some places.
+- Improved: Logic for escaped characters.
+- Improved: Logic for math block rendering.
+- Improved: Added \sqrt
 
 ---
 
@@ -153,6 +152,7 @@ cd LaTeX_renderer_for_excel
 │   ├── renderLaTeX.bas      # Core rendering logic
 │   ├── ThisWorkbook.cls       # Add-in initialization
 │   ├── RibbonThings.bas             # Add-in Ribbon
+|   ├── LaTeX_renderer_for_Excel.exe   # Installer 
 │   └── Globals.bas             # Global variables/settings
 ├── README.md                  # Project overview and setup guide
 └── LICENSE                    # MIT license (optional but recommended)
@@ -177,17 +177,11 @@ Contributions are welcome! Here's how you can help:
 - Include test cases for new features
 - Update documentation for API changes
 
-## 📋 Roadmap
-
-- [ ] **Extended Symbol Support**: More mathematical operators and symbols
-- [ ] **Custom Fonts**: Integration with mathematical font packages
-- [ ] **Performance Optimization**: Faster rendering for large ranges
-- [ ] **Formula Recognition**: Auto-detect mathematical expressions
 
 ## ⚠️ Known Limitations
 
 - **Font Dependency**: Requires Unicode-compatible fonts
-- **Complex Expressions**: Some advanced LaTeX features not supported, such as \frac, \sqrt, and nested functions
+- **Complex Expressions**: Some advanced LaTeX features not supported, such as \frac, \sqrt, and nested functions.
 - **Performance**: May slow down with large worksheets
 - **Compatibility**: Designed for Excel 2016+
 
@@ -197,9 +191,9 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 🙏 Acknowledgments
 
-- I thank my Creator for enabling me to create such a thing
-- I often will say that Excel is the pinnacle of man's creation
-- It is shocking how there has not been a way to render LaTeX code in Excel up until now
+- I thank my Creator for enabling me to create such a thing.
+- I often say that Excel is the pinnacle of man's creation.
+- It is shocking how there has not been a way to render LaTeX code in Excel up until now.
 
 ## 📞 Support
 
