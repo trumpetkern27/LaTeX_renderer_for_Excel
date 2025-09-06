@@ -1,5 +1,7 @@
 Attribute VB_Name = "RibbonThings"
 ' === Ribbon Globals ===
+Option Explicit
+
 Dim g_ribbon As IRibbonUI
 
 ' Load ribbon

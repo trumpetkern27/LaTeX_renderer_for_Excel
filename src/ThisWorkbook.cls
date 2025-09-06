@@ -28,7 +28,7 @@ Private Sub App_SheetChange(ByVal Sh As Object, ByVal Target As Range)
         Not Target Is Nothing And _
         ((Target.Columns.count = 1 And Target.Rows.count = 1) Or _
         Target.MergeCells) Then
-        Call LaTeX(Target)
+        LaTeX Target
     End If
 End Sub
 

@@ -6,8 +6,8 @@ Option Explicit
 Public Sub InitializeLaTeX()
     On Error Resume Next
     Dim current As String
-    current = GetSetting("LaTeXRenderer", "Settings", "Enabled", "")
-    If current = "" Then
+    current = GetSetting("LaTeXRenderer", "Settings", "Enabled", vbNullString)
+    If current = vbNullString Then
         SetLaTeXEnabled True
     End If
 End Sub
@@ -60,7 +60,7 @@ Public Sub SetLaTeXTimeout()
     
     userInput = InputBox("Enter timeout in seconds: ", "Set LaTeX Timeout", GetTimeoutSeconds())
     
-    If Trim(userInput) = "" Then Exit Sub ' User canceled
+    If Trim(userInput) = vbNullString Then Exit Sub ' User canceled
     
     If IsNumeric(userInput) Then
         newTimeout = CDbl(userInput)

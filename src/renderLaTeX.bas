@@ -25,6 +25,20 @@ Public Sub LaTeX(ByVal Target As Range)
     Dim iOffset As Long
     Dim t As Double: t = Timer
     Dim timeout As Double: timeout = GetTimeoutSeconds
+    Dim mathChars As Object: Set mathChars = CreateObject("Scripting.Dictionary")
+    mathChars.Add "^", Empty
+    mathChars.Add "_", Empty
+    mathChars.Add "\", Empty
+    Dim lit As Variant
+    lit = Array("å", "_", "æ", "$", "ç", "\", "ð", "^", "ò", "{", "õ", "}")
+    Dim valsToReplace As Object: Set valsToReplace = CreateObject("Scripting.Dictionary")
+    Dim replaceVals As Object: Set replaceVals = CreateObject("Scripting.Dictionary")
+    Dim i As Long
+    For i = 0 To 10 Step 2
+        replaceVals.Add lit(i), lit(i + 1)
+        valsToReplace.Add lit(i + 1), lit(i)
+    Next i
+    
     ' Error handling and disable events to prevent recursion
     On Error GoTo ErrHandler
     Application.EnableEvents = False
@@ -51,30 +65,22 @@ Public Sub LaTeX(ByVal Target As Range)
                         Dim endText As Long: endText = InStr(startText, txt, "}")
                         replaceEsc = InStr(startText, txt, "$")
                         Do While replaceEsc > 0 And replaceEsc < endText
+                            If Timer - t >= timeout Then Err.Raise 1
                             txt = Left(txt, replaceEsc - 1) & "æ" & Mid(txt, replaceEsc + 1)
                             cell.Characters(replaceEsc, 1).text = "æ"
                             replaceEsc = InStr(startText, txt, "$")
                         Loop
                     End If
                 End If
-                
-                
-                
-                ' Handle escaped dollar signs (\$)
-                Do While InStr(startPos + 1, txt, "\$") > 0
-                    replaceEsc = InStr(startPos + 1, txt, "\$")
-                    If Mid(txt, replaceEsc - 1, 1) = "\" Then
-                        txt = Left(txt, replaceEsc - 2) & "ç" & Mid(txt, replaceEsc + 1)
-                        cell.Characters(replaceEsc - 1, 2).text = "ç"
-                    Else
-                        txt = Left(txt, replaceEsc - 1) & "æ" & Mid(txt, replaceEsc + 2)
-                        cell.Characters(replaceEsc, 2).text = "æ"
-                    End If
-                Loop
 
                 ' Find closing delimiter
                 endPos = InStr(startPos + 1, txt, "$")
-                If endPos = 0 Then Exit Do
+                If endPos < 2 Then Exit Do
+                Do While Mid(txt, endPos - 1, 1) = "\" And Mid(txt, endPos - 2, 1) <> "\"
+                    If Timer - t >= timeout Then Err.Raise 1
+                    endPos = InStr(endPos + 1, txt, "$")
+                Loop
+                
                 
                 ' Check if this looks like actual LaTeX (contains LaTeX syntax)
                 If InStr(Mid(txt, startPos, endPos - startPos + 1), "\") = 0 And _
@@ -82,25 +88,53 @@ Public Sub LaTeX(ByVal Target As Range)
                    InStr(Mid(txt, startPos, endPos - startPos + 1), "_") = 0 And _
                    InStr(Mid(txt, startPos, endPos - startPos + 1), "æ") = 0 And _
                    InStr(Mid(txt, startPos, endPos - startPos + 1), "ç") = 0 Then
+                   iOffset = iOffset + 1
                    GoTo NextLoop
+                Else
+                    'Remove $ for valid block
+                    cell.Characters(startPos, 1).text = vbNullString
+                    endPos = endPos - 1
+                    cell.Characters(endPos, 1).text = vbNullString
+                    txt = cell.value
                 End If
-
-                ' Extract LaTeX code and render it
-                mathBlock = Mid(txt, startPos + 1, endPos - startPos - 1)
-                rendered = RenderLatexSimple(mathBlock)
-                Dim lastColor As Long: lastColor = cell.Characters(startPos, endPos - startPos + 1).Font.Color
-
-                ' Replace LaTeX with rendered Unicode, preserving formatting
-                With cell
-                    .Characters(startPos, endPos - startPos + 1).text = rendered
-                    .Characters(startPos, Len(rendered)).Font.Color = lastColor
-                End With
-                txt = cell.value
                 
-                Dim i As Long, endBrace As Long
+                ' Handle escaped characters (\$, \\, \{, \}, \^, \_)
+                For i = startPos + 1 To endPos
+                    If valsToReplace.exists(Mid(txt, i, 1)) And Mid(txt, i - 1, 1) = "\" Then
+                        cell.Characters(i - 1, 2).text = valsToReplace(Mid(txt, i, 1))
+                        txt = cell.value
+                        endPos = endPos - 1
+                    End If
+                Next i
+                
+                Dim endBlock As Long
+                ' Extract LaTeX code and render it
+                Do
+                    If Timer - t >= timeout Then Err.Raise 1
+                    For i = startPos + 1 To endPos
+                        endBlock = i
+                        If mathChars.exists(CStr(Mid(txt, i, 1))) Then Exit For
+                    Next i
+                    If endBlock > endPos Or startPos >= endBlock Then Exit Do
+                    mathBlock = Mid(txt, startPos, endBlock - startPos)
+                    rendered = RenderLatexSimple(mathBlock)
+                    Dim lastColor As Long: lastColor = cell.Characters(startPos, endBlock - startPos).Font.Color
+    
+                    ' Replace LaTeX with rendered Unicode, preserving formatting
+                    With cell
+                        .Characters(startPos, endBlock - startPos).text = rendered
+                        .Characters(startPos, Len(rendered)).Font.Color = lastColor
+                    End With
+                    txt = cell.value
+                    startPos = startPos + Len(rendered)
+                    endPos = endPos - Len(mathBlock) + Len(rendered)
+                    iOffset = startPos - 1
+                Loop
+                Dim endBrace As Long
                 
                 ' Process superscripts (^{...})
                 Do
+                    If Timer - t >= timeout Then Err.Raise 1
                     i = InStr(txt, "^{")
                     If i = 0 Then Exit Do
                     endBrace = ClosingBrace(txt, i + 2)
@@ -120,6 +154,7 @@ Public Sub LaTeX(ByVal Target As Range)
                 
                 ' Process subscripts (_{...})
                 Do
+                    If Timer - t >= timeout Then Err.Raise 1
                     i = InStr(txt, "_{")
                     If i = 0 Then Exit Do
                     endBrace = ClosingBrace(txt, i + 2)
@@ -130,22 +165,13 @@ Public Sub LaTeX(ByVal Target As Range)
                     End With
                     txt = cell.value
                 Loop
-                
-                ' Update offset for next iteration
-                iOffset = startPos + Len(rendered) - 1
 
 NextLoop:
             Loop
            
             ' Restore escaped characters
             txt = cell.value
-            Dim lit As Variant
             Dim escPos As Long
-            Dim replaceVals As Object: Set replaceVals = CreateObject("Scripting.Dictionary")
-            lit = Array("å", "_", "æ", "$", "ç", "\", "ð", "^")
-            For i = 0 To 6 Step 2
-                replaceVals.Add lit(i), lit(i + 1)
-            Next i
             For Each lit In replaceVals.keys
                 Do While InStr(txt, lit) > 0
                     escPos = InStr(txt, lit)
@@ -159,7 +185,7 @@ NextLoop:
 ErrHandler:
     Select Case Err.Number
         Case 1004: MsgBox "Error processing LaTeX expression. Please check syntax.", vbCritical
-        Case 94: MsgBox "Error: only one colour permitted per $ statement.", vbCritical
+        Case 94: MsgBox "Error: only one colour permitted per command.", vbCritical
         Case 9: MsgBox "Invalid character range detected.", vbCritical
         Case 1: MsgBox "Runtime error.", vbCritical
         Case Else: MsgBox "Unexpected error: " & Err.Description, vbCritical
@@ -171,9 +197,8 @@ ExitClean:
 End Sub
 
 ' Core LaTeX rendering function - converts LaTeX symbols to Unicode
-Function RenderLatexSimple(ByVal txt As String) As String
+Private Function RenderLatexSimple(ByVal txt As String) As String
     Dim out As String
-    Dim i As Long, j As Long
     out = txt
     
     ' Handle mathematical alphabets
@@ -182,90 +207,161 @@ Function RenderLatexSimple(ByVal txt As String) As String
     'Replace LaTeX symbols
     out = Replace(out, "\zeta", ChrW(&H3B6))
     out = Replace(out, "\Zeta", ChrW(&H396))
+    
+    out = Replace(out, "\yen", ChrW(&HA5))
+    
+    out = Replace(out, "\xi", ChrW(&H3BE))
+    out = Replace(out, "\Xi", ChrW(&H39E))
+    
     out = Replace(out, "\wp", ChrW(&H2118))
     out = Replace(out, "\wr", ChrW(&H2240))
     out = Replace(out, "\wedge", ChrW(&H2227))
+    
     out = Replace(out, "\vee", ChrW(&H2228))
-    out = Replace(out, "\varnothing", ChrW(&H2205))
-    out = Replace(out, "\varrho", ChrW(&H3F1))
-    out = Replace(out, "\varsigma", ChrW(&H3C2))
-    out = Replace(out, "\varpi", ChrW(&H3D6))
-    out = Replace(out, "\vartheta", ChrW(&H3D1))
-    out = Replace(out, "\varphi", ChrW(&H3D5))
-    out = Replace(out, "\varkappa", ChrW(&H3F0))
-    out = Replace(out, "\varepsilon", ChrW(&H3F5))
     out = Replace(out, "\vdots", ChrW(&H22EE))
     out = Replace(out, "\vdash", ChrW(&H22A2))
-    out = Replace(out, "\uparrow", ChrW(&H2191))
+    out = Replace(out, "\vDash", ChrW(&H22A8))
+    out = Replace(out, "\Vdash", ChrW(&H22A9))
+    out = Replace(out, "\Vvdash", ChrW(&H22AA))
+    out = Replace(out, "\vartriangleright", ChrW(&H22B3))
+    out = Replace(out, "\vartriangleleft", ChrW(&H22B2))
+    out = Replace(out, "\varsigma", ChrW(&H3C2))
+    out = Replace(out, "\varrho", ChrW(&H3F1))
+    out = Replace(out, "\varpi", ChrW(&H3D6))
+    out = Replace(out, "\varkappa", ChrW(&H3F0))
+    out = Replace(out, "\vartheta", ChrW(&H3D1))
+    out = Replace(out, "\varphi", ChrW(&H3D5))
+    out = Replace(out, "\varepsilon", ChrW(&H3F5))
+    out = Replace(out, "\varnothing", ChrW(&H2205))
+    
     out = Replace(out, "\upsilon", ChrW(&H3C5))
     out = Replace(out, "\Upsilon", ChrW(&H3A5))
+    out = Replace(out, "\uparrow", ChrW(&H2191))
+    out = Replace(out, "\Uparrow", ChrW(&H21D1))
+    out = Replace(out, "\updownarrow", ChrW(&H2195))
     out = Replace(out, "\Updownarrow", ChrW(&H21D5))
     out = Replace(out, "\uplus", ChrW(&H228E))
+
+    out = Replace(out, "\twoheadrightarrow", ChrW(&H21A0))
+    out = Replace(out, "\triangleright", ChrW(&H25B7))
+    out = Replace(out, "\triangleleft", ChrW(&H25C1))
+    out = Replace(out, "\triangledown", ChrW(&H25BD))
+    out = Replace(out, "\triangle", ChrW(&H25B3))
     out = Replace(out, "\top", ChrW(&H22A4))
-    out = Replace(out, "\Tau", ChrW(&H3A4))
-    out = Replace(out, "\tau", ChrW(&H3C4))
+    out = Replace(out, "\to", ChrW(&H2192))
+    out = Replace(out, "\times", ChrW(&HD7))
     out = Replace(out, "\therefore", ChrW(&H2234))
     out = Replace(out, "\theta", ChrW(&H3B8))
     out = Replace(out, "\Theta", ChrW(&H398))
-    out = Replace(out, "\times", ChrW(&HD7))
-    out = Replace(out, "\twoheadrightarrow", ChrW(&H21A0))
+    out = Replace(out, "\thicksim", ChrW(&H223C))
+    out = Replace(out, "\thickapprox", ChrW(&H2248))
+    out = Replace(out, "\tau", ChrW(&H3C4))
+    out = Replace(out, "\Tau", ChrW(&H3A4))
+    
     out = Replace(out, "\swarrow", ChrW(&H2199))
-    out = Replace(out, "\subseteq", ChrW(&H2286))
-    out = Replace(out, "\subset", ChrW(&H2282))
-    out = Replace(out, "\succ", ChrW(&H227B))
-    out = Replace(out, "\succeq", ChrW(&H227D))
+    out = Replace(out, "\sum", ChrW(&H2211))
     out = Replace(out, "\supseteq", ChrW(&H2287))
     out = Replace(out, "\supset", ChrW(&H2283))
+    out = Replace(out, "\surd", ChrW(&H221A))
+    out = Replace(out, "\subseteq", ChrW(&H2286))
+    out = Replace(out, "\subset", ChrW(&H2282))
+    out = Replace(out, "\succsim", ChrW(&H227F))
+    out = Replace(out, "\succeq", ChrW(&H227D))
+    out = Replace(out, "\succ", ChrW(&H227B))
+    out = Replace(out, "\star", ChrW(&H22C6))
+    out = Replace(out, "\square", ChrW(&H25A1))
+    out = Replace(out, "\sqrt", ChrW(&H221A))
     out = Replace(out, "\sqcup", ChrW(&H2294))
     out = Replace(out, "\sqcap", ChrW(&H2293))
-    out = Replace(out, "\sigma", ChrW(&H3C3))
-    out = Replace(out, "\Sigma", ChrW(&H3A3))
+    out = Replace(out, "\spadesuit", ChrW(&H2660))
+    out = Replace(out, "\smile", ChrW(&H2323))
+    out = Replace(out, "\smallsmile", ChrW(&H2323))
+    out = Replace(out, "\smallsetminus", ChrW(&H2216))
+    out = Replace(out, "\smallfrown", ChrW(&H2322))
     out = Replace(out, "\simeq", ChrW(&H2243))
     out = Replace(out, "\sim", ChrW(&H223C))
-    out = Replace(out, "\smallsetminus", ChrW(&H2216))
+    out = Replace(out, "\sigma", ChrW(&H3C3))
+    out = Replace(out, "\Sigma", ChrW(&H3A3))
+    out = Replace(out, "\sharp", ChrW(&H266F))
     out = Replace(out, "\setminus", ChrW(&H2216))
     out = Replace(out, "\searrow", ChrW(&H2198))
+    
+    out = Replace(out, "\rtimes", ChrW(&H22CA))
     out = Replace(out, "\rightsquigarrow", ChrW(&H21DD))
+    out = Replace(out, "\rightleftharpoons", ChrW(&H21CC))
+    out = Replace(out, "\rightharpoonup", ChrW(&H21C0))
+    out = Replace(out, "\rightharpoondown", ChrW(&H21C1))
     out = Replace(out, "\rightarrow", ChrW(&H2192))
     out = Replace(out, "\Rightarrow", ChrW(&H21D2))
     out = Replace(out, "\rho", ChrW(&H3C1))
     out = Replace(out, "\Rho", ChrW(&H3A1))
+    out = Replace(out, "\rfloor", ChrW(&H230B))
     out = Replace(out, "\Re", ChrW(&H211C))
-    out = Replace(out, "\prime", ChrW(&H2032))
-    out = Replace(out, "\propto", ChrW(&H221D))
+    out = Replace(out, "\rceil", ChrW(&H2309))
+    out = Replace(out, "\rbrace", ChrW(&H7D))
+    out = Replace(out, "\rangle", ChrW(&H27E9))
+
     out = Replace(out, "\psi", ChrW(&H3C8))
     out = Replace(out, "\Psi", ChrW(&H3A8))
+    out = Replace(out, "\propto", ChrW(&H221D))
+    out = Replace(out, "\prod", ChrW(&H220F))
+    out = Replace(out, "\prime", ChrW(&H2032))
+    out = Replace(out, "\precsim", ChrW(&H227E))
+    out = Replace(out, "\preceq", ChrW(&H2AAF))
+    out = Replace(out, "\prec", ChrW(&H227A))
     out = Replace(out, "\pm", ChrW(&HB1))
-    out = Replace(out, "\Pi", ChrW(&H3A0))
+    out = Replace(out, "\pitchfork", ChrW(&H22D4))
     out = Replace(out, "\pi", ChrW(&H3C0))
+    out = Replace(out, "\Pi", ChrW(&H3A0))
     out = Replace(out, "\phi", ChrW(&H3C6))
     out = Replace(out, "\Phi", ChrW(&H3A6))
     out = Replace(out, "\perp", ChrW(&H22A5))
+    out = Replace(out, "\partial", ChrW(&H2202))
+    
+    out = Replace(out, "\owns", ChrW(&H220B))
     out = Replace(out, "\otimes", ChrW(&H2297))
     out = Replace(out, "\oslash", ChrW(&H2298))
     out = Replace(out, "\oplus", ChrW(&H2295))
-    out = Replace(out, "\Omega", ChrW(&H3A9))
-    out = Replace(out, "\omega", ChrW(&H3C9))
-    out = Replace(out, "\Omicron", ChrW(&H39F))
+    out = Replace(out, "\ominus", ChrW(&H2296))
     out = Replace(out, "\omicron", ChrW(&H3BF))
+    out = Replace(out, "\Omicron", ChrW(&H39F))
+    out = Replace(out, "\omega", ChrW(&H3C9))
+    out = Replace(out, "\Omega", ChrW(&H3A9))
+    out = Replace(out, "\odot", ChrW(&H2299))
+    out = Replace(out, "\oint", ChrW(&H222E))
+
     out = Replace(out, "\nwarrow", ChrW(&H2196))
     out = Replace(out, "\nu", ChrW(&H3BD))
     out = Replace(out, "\Nu", ChrW(&H39D))
+    out = Replace(out, "\nsupseteq", ChrW(&H2289))
+    out = Replace(out, "\nsubseteq", ChrW(&H2288))
+    out = Replace(out, "\nRightarrow", ChrW(&H21CF))
+    out = Replace(out, "\nrightarrow", ChrW(&H219B))
+    out = Replace(out, "\nLeftarrow", ChrW(&H21CD))
+    out = Replace(out, "\nleftarrow", ChrW(&H219A))
     out = Replace(out, "\notin", ChrW(&H2209))
     out = Replace(out, "\nleq", ChrW(&H2270))
-    out = Replace(out, "\nexists", ChrW(&H2204))
+    out = Replace(out, "\ni", ChrW(&H220B))
     out = Replace(out, "\ngeq", ChrW(&H2271))
-    out = Replace(out, "\nearrow", ChrW(&H2197))
+    out = Replace(out, "\nexists", ChrW(&H2204))
     out = Replace(out, "\neq", ChrW(&H2260))
     out = Replace(out, "\neg", ChrW(&HAC))
+    out = Replace(out, "\nearrow", ChrW(&H2197))
+    out = Replace(out, "\ne", ChrW(&H2260))
     out = Replace(out, "\nabla", ChrW(&H2207))
+    
+    
     out = Replace(out, "\models", ChrW(&H22A7))
     out = Replace(out, "\mu", ChrW(&H3BC))
     out = Replace(out, "\Mu", ChrW(&H39C))
+    out = Replace(out, "\mp", ChrW(&H2213))
     out = Replace(out, "\mid", ChrW(&H2223))
     out = Replace(out, "\measuredangle", ChrW(&H2221))
     out = Replace(out, "\mapsto", ChrW(&H21A6))
+    
     out = Replace(out, "\lt", ChrW(&H3C))
+    out = Replace(out, "\lrcorner", ChrW(&H231F))
+    out = Replace(out, "\lozenge", ChrW(&H25CA))
     out = Replace(out, "\longrightarrow", ChrW(&H27F6))
     out = Replace(out, "\longleftrightarrow", ChrW(&H27F7))
     out = Replace(out, "\longleftarrow", ChrW(&H27F5))
@@ -274,16 +370,27 @@ Function RenderLatexSimple(ByVal txt As String) As String
     out = Replace(out, "\Longleftarrow", ChrW(&H27F8))
     out = Replace(out, "\lor", ChrW(&H2228))
     out = Replace(out, "\ll", ChrW(&H226A))
-    out = Replace(out, "\Leftrightarrow", ChrW(&H21D4))
+    out = Replace(out, "\lhd", ChrW(&H25C1))
+    out = Replace(out, "\lfloor", ChrW(&H230A))
     out = Replace(out, "\leq", ChrW(&H2264))
+    out = Replace(out, "\leftrightarrow", ChrW(&H2194))
+    out = Replace(out, "\Leftrightarrow", ChrW(&H21D4))
     out = Replace(out, "\Leftarrow", ChrW(&H21D0))
     out = Replace(out, "\leftarrow", ChrW(&H2190))
     out = Replace(out, "\leadsto", ChrW(&H21DD))
+    out = Replace(out, "\ldots", ChrW(&H2026))
+    out = Replace(out, "\lceil", ChrW(&H2308))
+    out = Replace(out, "\langle", ChrW(&H27E8))
+    out = Replace(out, "\land", ChrW(&H2227))
     out = Replace(out, "\lambda", ChrW(&H3BB))
     out = Replace(out, "\Lambda", ChrW(&H39B))
+    
     out = Replace(out, "\kappa", ChrW(&H3BA))
     out = Replace(out, "\Kappa", ChrW(&H39A))
+    
     out = Replace(out, "\jmath", ChrW(&H237))
+    out = Replace(out, "\Join", ChrW(&H22C8))
+    
     out = Replace(out, "\iota", ChrW(&H3B9))
     out = Replace(out, "\Iota", ChrW(&H399))
     out = Replace(out, "\int", ChrW(&H222B))
@@ -291,25 +398,42 @@ Function RenderLatexSimple(ByVal txt As String) As String
     out = Replace(out, "\in", ChrW(&H2208))
     out = Replace(out, "\Im", ChrW(&H2111))
     out = Replace(out, "\imath", ChrW(&H131))
+    
+    out = Replace(out, "\hslash", ChrW(&H210F))
     out = Replace(out, "\hookrightarrow", ChrW(&H21AA))
     out = Replace(out, "\hookleftarrow", ChrW(&H21A9))
     out = Replace(out, "\hbar", ChrW(&H210F))
+    out = Replace(out, "\heartsuit", ChrW(&H2665))
+    
+    out = Replace(out, "\gtrsim", ChrW(&H2273))
+    out = Replace(out, "\gtrless", ChrW(&H2277))
+    out = Replace(out, "\gtrapprox", ChrW(&H2A86))
+    out = Replace(out, "\gg", ChrW(&H226B))
     out = Replace(out, "\geq", ChrW(&H2265))
-    out = Replace(out, "\Gamma", ChrW(&H393))
     out = Replace(out, "\gamma", ChrW(&H3B3))
+    out = Replace(out, "\Gamma", ChrW(&H393))
+    
     out = Replace(out, "\forall", ChrW(&H2200))
+    out = Replace(out, "\flat", ChrW(&H266D))
+    out = Replace(out, "\frown", ChrW(&H2322))
+    out = Replace(out, "\frac12", ChrW(&HBD))
+    out = Replace(out, "\fallingdotseq", ChrW(&H2252))
+
     out = Replace(out, "\exists", ChrW(&H2203))
     out = Replace(out, "\epsilon", ChrW(&H3B5))
     out = Replace(out, "\equiv", ChrW(&H2261))
+    out = Replace(out, "\eth", ChrW(&HF0))
     out = Replace(out, "\eta", ChrW(&H3B7))
     out = Replace(out, "\Eta", ChrW(&H397))
     out = Replace(out, "\Epsilon", ChrW(&H395))
     out = Replace(out, "\emptyset", ChrW(&H2205))
     out = Replace(out, "\ell", ChrW(&H2113))
+    
     out = Replace(out, "\downarrow", ChrW(&H2193))
     out = Replace(out, "\Downarrow", ChrW(&H21D3))
     out = Replace(out, "\dots", ChrW(&H2026))
     out = Replace(out, "\div", ChrW(&HF7))
+    out = Replace(out, "\diamondsuit", ChrW(&H2666))
     out = Replace(out, "\diamond", ChrW(&H22C4))
     out = Replace(out, "\delta", ChrW(&H3B4))
     out = Replace(out, "\Delta", ChrW(&H394))
@@ -317,20 +441,40 @@ Function RenderLatexSimple(ByVal txt As String) As String
     out = Replace(out, "\ddagger", ChrW(&H2021))
     out = Replace(out, "\dagger", ChrW(&H2020))
     out = Replace(out, "\dashv", ChrW(&H22A3))
+    
+    out = Replace(out, "\curlywedge", ChrW(&H22CF))
+    out = Replace(out, "\curlyvee", ChrW(&H22CE))
     out = Replace(out, "\cup", ChrW(&H222A))
+    out = Replace(out, "\copyright", ChrW(&HA9))
+    out = Replace(out, "\coprod", ChrW(&H2210))
     out = Replace(out, "\cong", ChrW(&H2245))
     out = Replace(out, "\complement", ChrW(&H2201))
+    out = Replace(out, "\clubsuit", ChrW(&H2663))
     out = Replace(out, "\circ", ChrW(&H2218))
     out = Replace(out, "\chi", ChrW(&H3C7))
     out = Replace(out, "\Chi", ChrW(&H3A7))
+    out = Replace(out, "\checkmark", ChrW(&H2713))
     out = Replace(out, "\cdots", ChrW(&H22EF))
     out = Replace(out, "\cdot", ChrW(&H22C5))
     out = Replace(out, "\cap", ChrW(&H2229))
+
     out = Replace(out, "\bullet", ChrW(&H2022))
+    out = Replace(out, "\bowtie", ChrW(&H22C8))
+    out = Replace(out, "\boxtimes", ChrW(&H22A0))
+    out = Replace(out, "\Box", ChrW(&H25A1))
     out = Replace(out, "\bot", ChrW(&H22A5))
-    out = Replace(out, "\because", ChrW(&H2235))
+    out = Replace(out, "\blacktriangleright", ChrW(&H25B6))
+    out = Replace(out, "\blacktriangleleft", ChrW(&H25C0))
+    out = Replace(out, "\blacktriangledown", ChrW(&H25BC))
+    out = Replace(out, "\blacktriangle", ChrW(&H25B2))
+    out = Replace(out, "\blacksquare", ChrW(&H25A0))
+    out = Replace(out, "\blacklozenge", ChrW(&H29EB))
+    out = Replace(out, "\bigstar", ChrW(&H2605))
     out = Replace(out, "\beta", ChrW(&H3B2))
     out = Replace(out, "\Beta", ChrW(&H392))
+    out = Replace(out, "\because", ChrW(&H2235))
+    
+    out = Replace(out, "\asymp", ChrW(&H224D))
     out = Replace(out, "\ast", ChrW(&H2A))
     out = Replace(out, "\approx", ChrW(&H2248))
     out = Replace(out, "\angle", ChrW(&H2220))
@@ -354,7 +498,6 @@ End Function
 ' Helper function to process single-character superscripts and subscripts
 Private Function ProcessSingleScripts(ByVal text As String, ByVal scriptChar As String) As String
     Dim out As String: out = text
-    Dim scriptCount As Long: scriptCount = CountChars(out, scriptChar)
     Dim skippedCount As Long: skippedCount = 0
     Dim pos As Long
     
@@ -395,7 +538,7 @@ Private Function ProcessMathAlphabets(ByVal text As String) As String
             ePos = InStr(sPos, out, "}")
             If ePos = 0 Then Exit Do
             
-            middle = ""
+            middle = vbNullString
             On Error Resume Next
             For i = sPos To ePos - 1
                 middle = middle & Application.Run(CStr(alpha), Mid(out, i, 1))
@@ -419,7 +562,6 @@ Private Function ProcessFractions(ByVal text As String) As String
     Dim out As String: out = text
     Dim fracStart As Long, fracMid As Long, fracEnd As Long
     Dim numerator As String, denominator As String
-    Dim i As Long, braceCount As Long
     Do
         fracStart = InStr(out, "\frac{")
         If fracStart = 0 Then Exit Do
@@ -463,7 +605,7 @@ Private Function CountChars(ByVal text As String, ByVal char As String) As Long
 End Function
 
 ' Unicode character helper functions for mathematical alphabets
-Function UnicodeChar(codePoint As Long) As String
+Private Function UnicodeChar(codePoint As Long) As String
     If codePoint <= 65535 Then
         UnicodeChar = ChrW(codePoint)
     Else
@@ -475,7 +617,7 @@ Function UnicodeChar(codePoint As Long) As String
 End Function
 
 ' Mathematical alphabet functions
-Function mathbf(c As String) As String
+Private Function mathbf(c As String) As String
     Dim code As Long
     c = UCase(c)
     code = AscW(c)
@@ -486,7 +628,7 @@ Function mathbf(c As String) As String
     End If
 End Function
 
-Function mathcal(c As String) As String
+Private Function mathcal(c As String) As String
     Dim map As Object
     Set map = CreateObject("Scripting.Dictionary")
     
@@ -502,14 +644,14 @@ Function mathcal(c As String) As String
     map.Add "Y", &H1D4B4: map.Add "Z", &H1D4B5
     
     c = UCase(c)
-    If map.Exists(c) Then
+    If map.exists(c) Then
         mathcal = UnicodeChar(map(c))
     Else
         mathcal = c
     End If
 End Function
 
-Function mathbb(c As String) As String
+Private Function mathbb(c As String) As String
     Dim map As Object
     Set map = CreateObject("Scripting.Dictionary")
     
@@ -525,14 +667,14 @@ Function mathbb(c As String) As String
     map.Add "Y", &H1D550: map.Add "Z", &H2124
     
     c = UCase(c)
-    If map.Exists(c) Then
+    If map.exists(c) Then
         mathbb = UnicodeChar(map(c))
     Else
         mathbb = c
     End If
 End Function
 
-Function mathfrak(c As String) As String
+Private Function mathfrak(c As String) As String
     Dim map As Object
     Set map = CreateObject("Scripting.Dictionary")
     
@@ -548,14 +690,14 @@ Function mathfrak(c As String) As String
     map.Add "Y", &H1D51C: map.Add "Z", &H2128
     
     c = UCase(c)
-    If map.Exists(c) Then
+    If map.exists(c) Then
         mathfrak = UnicodeChar(map(c))
     Else
         mathfrak = c
     End If
 End Function
 
-Function mathit(c As String) As String
+Private Function mathit(c As String) As String
     Dim code As Long
     c = UCase(c)
     code = AscW(c)
@@ -566,7 +708,7 @@ Function mathit(c As String) As String
     End If
 End Function
 
-Function mathsf(c As String) As String
+Private Function mathsf(c As String) As String
     Dim code As Long
     c = UCase(c)
     code = AscW(c)
@@ -577,7 +719,7 @@ Function mathsf(c As String) As String
     End If
 End Function
 
-Function mathtt(c As String) As String
+Private Function mathtt(c As String) As String
     Dim code As Long
     c = UCase(c)
     code = AscW(c)
@@ -588,7 +730,7 @@ Function mathtt(c As String) As String
     End If
 End Function
 
-Function text(c As String) As String
+Private Function text(c As String) As String
     c = Replace(c, "^", "ð")
     c = Replace(c, "_", "å")
     c = Replace(c, "\", "ç")
@@ -598,26 +740,6 @@ End Function
 ' Additional helper function for checking if cell contains text
 Private Function IsText(ByVal cellValue As Variant) As Boolean
     IsText = (VarType(cellValue) = vbString)
-End Function
-
-' Min function
-Private Function Min(ByVal arr As Variant) As Double
-    Dim i As Long: i = LBound(arr)
-    Dim small As Double: small = arr(i)
-    For i = 1 + LBound(arr) To UBound(arr)
-        If arr(i) < small Then small = arr(i)
-    Next i
-    Min = small
-End Function
-
-' Max function
-Private Function Max(ByVal arr As Variant) As Double
-    Dim i As Long: i = LBound(arr)
-    Dim large As Double: large = arr(i)
-    For i = 1 + LBound(arr) To UBound(arr)
-        If arr(i) < large Then large = arr(i)
-    Next i
-    Max = large
 End Function
 
 
